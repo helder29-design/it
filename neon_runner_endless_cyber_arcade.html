@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Runner - Arcade Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0c10;
+            color: #c5c6c7;
+            overflow: hidden;
+        }
+        .font-pixel {
+            font-family: 'Press Start 2P', cursive;
+        }
+        canvas {
+            display: block;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.2);
+            background: #0d0e15;
+            border-radius: 12px;
+        }
+        .neon-border {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            border: 2px solid #00f3ff;
+        }
+        .neon-button {
+            transition: all 0.2s ease;
+            text-shadow: 0 0 8px currentColor;
+        }
+        .neon-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px currentColor;
+        }
+        .neon-button:active {
+            transform: translateY(1px);
+        }
+        /* Custom Scrollbar for Modal content if needed */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2833;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #66fcf1;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-2 md:p-4 bg-slate-950 text-white select-none">
+
+    <!-- Main Game Wrapper -->
+    <div class="relative w-full max-w-4xl flex flex-col items-center">
+        
+        <!-- Header / Control Bar -->
+        <div class="w-full flex justify-between items-center mb-2 px-2">
+            <div class="flex items-center space-x-2">
+                <span class="font-pixel text-xs sm:text-sm text-cyan-400 tracking-wider">NEON RUNNER</span>
+                <span id="version" class="text-xs text-slate-500 font-mono hidden sm:inline">v1.0</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button id="soundToggle" class="p-2 bg-slate-800 rounded-lg border border-slate-700 hover:border-cyan-400 text-xs flex items-center gap-1 transition">
+                    <span id="soundIcon">🔊</span> <span class="hidden sm:inline">Audio</span>
+                </button>
+                <button id="pauseBtn" class="p-2 bg-slate-800 rounded-lg border border-slate-700 hover:border-cyan-400 text-xs flex items-center gap-1 transition">
+                    ⏸️ <span class="hidden sm:inline">Pause</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full aspect-[2/1] max-h-[70vh] flex justify-center items-center">
+            <canvas id="gameCanvas" class="w-full h-full"></canvas>
+
+            <!-- Overlay: Start Screen -->
+            <div id="startScreen" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-4 text-center z-20">
+                <h1 class="font-pixel text-2xl sm:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-yellow-400 mb-2 animate-pulse">
+                    NEON RUNNER
+                </h1>
+                <p class="text-slate-400 text-sm sm:text-base max-w-md mb-6">
+                    Jump, duck, and dash through an endless cyberpunk grid. Collect power-ups and score as high as you can!
+                </p>
+
+                <!-- Character Selection -->
+                <div class="mb-6 w-full max-w-sm">
+                    <div class="text-xs font-pixel text-cyan-300 mb-2">CHOOSE YOUR RUNNER</div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="skin-btn p-3 rounded-lg border-2 border-cyan-400 bg-slate-900 flex flex-col items-center transition" data-skin="dino">
+                            <span class="text-2xl mb-1">🦖</span>
+                            <span class="text-xs font-bold text-cyan-400">Cyber Dino</span>
+                        </button>
+                        <button class="skin-btn p-3 rounded-lg border border-slate-700 bg-slate-900/50 flex flex-col items-center transition hover:border-pink-500" data-skin="runner">
+                            <span class="text-2xl mb-1">🤖</span>
+                            <span class="text-xs font-bold text-slate-400">Synth Bot</span>
+                        </button>
+                        <button class="skin-btn p-3 rounded-lg border border-slate-700 bg-slate-900/50 flex flex-col items-center transition hover:border-yellow-400" data-skin="cat">
+                            <span class="text-2xl mb-1">😺</span>
+                            <span class="text-xs font-bold text-slate-400">Astro Cat</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button id="startBtn" class="font-pixel py-3 px-8 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold rounded-lg shadow-lg shadow-cyan-500/50 transform hover:scale-105 transition active:scale-95 text-sm sm:text-base">
+                    PRESS TO RUN
+                </button>
+                <p class="text-xs text-slate-500 mt-4 hidden sm:block">Controls: SPACE/UP = Jump | DOWN = Duck | P/ESC = Pause</p>
+            </div>
+
+            <!-- Overlay: Game Over Modal -->
+            <div id="gameOverScreen" class="absolute inset-0 bg-slate-950/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-4 text-center z-20 hidden">
+                <h2 class="font-pixel text-2xl sm:text-3xl text-red-500 mb-2">SYSTEM CRASHED</h2>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-lg p-4 my-4 w-64 text-left font-mono">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-slate-400">FINAL SCORE:</span>
+                        <span id="finalScore" class="text-cyan-400 font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                        <span class="text-slate-400">HIGH SCORE:</span>
+                        <span id="finalHighScore" class="text-yellow-400 font-bold">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">DISTANCE:</span>
+                        <span id="finalDistance" class="text-pink-400 font-bold">0m</span>
+                    </div>
+                </div>
+                <button id="restartBtn" class="font-pixel py-3 px-8 bg-pink-500 hover:bg-pink-400 text-slate-950 font-bold rounded-lg shadow-lg shadow-pink-500/50 transform hover:scale-105 transition active:scale-95 text-sm sm:text-base">
+                    RETRY SYSTEM
+                </button>
+            </div>
+
+            <!-- Overlay: Pause Screen -->
+            <div id="pauseScreen" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center p-4 text-center z-20 hidden">
+                <h2 class="font-pixel text-2xl text-yellow-400 mb-4">SYSTEM PAUSED</h2>
+                <button id="resumeBtn" class="font-pixel py-2 px-6 bg-cyan-500 text-slate-950 font-bold rounded-lg hover:bg-cyan-400 mb-2 text-sm">
+                    RESUME
+                </button>
+            </div>
+        </div>
+
+        <!-- Touch Controls for Mobile Devices -->
+        <div id="touchControls" class="w-full grid grid-cols-2 gap-3 mt-3 sm:hidden">
+            <button id="touchDuck" class="py-4 bg-slate-800/80 border border-slate-700 active:bg-cyan-900/50 rounded-xl font-bold text-center text-cyan-400 select-none text-lg">
+                ⬇️ DUCK
+            </button>
+            <button id="touchJump" class="py-4 bg-slate-800/80 border border-slate-700 active:bg-cyan-900/50 rounded-xl font-bold text-center text-cyan-400 select-none text-lg">
+                ⬆️ JUMP / FLY
+            </button>
+        </div>
+
+        <!-- How to Play Footer -->
+        <div class="w-full mt-4 p-3 bg-slate-900/50 border border-slate-800 rounded-xl text-xs text-slate-400 grid grid-cols-1 md:grid-cols-3 gap-2 text-center">
+            <div><span class="text-cyan-400 font-bold">🦘 Double Jump:</span> Tap jump again in mid-air.</div>
+            <div><span class="text-pink-400 font-bold">⚡ Power-Ups:</span> Shields, Jetpacks & Magnets!</div>
+            <div><span class="text-yellow-400 font-bold">🔥 Combo:</span> Avoid obstacles to boost score multiplier.</div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio Synthesizer sound generator
+        class SoundSystem {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+                this.bgmTimer = null;
+                this.step = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playJump() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            }
+
+            playPickup() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime + 0.08);
+                osc.frequency.setValueAtTime(600, this.ctx.currentTime + 0.16);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.25);
+            }
+
+            playHit() {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+
+            startMusic() {
+                if (!this.enabled || this.bgmTimer) return;
+                this.init();
+                const notes = [110, 130.81, 146.83, 164.81, 110, 130.81, 196, 164.81]; // Cyber synth bassline
+                this.bgmTimer = setInterval(() => {
+                    if (!this.enabled) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    const freq = notes[this.step % notes.length];
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.2);
+                    this.step++;
+                }, 200);
+            }
+
+            stopMusic() {
+                if (this.bgmTimer) {
+                    clearInterval(this.bgmTimer);
+                    this.bgmTimer = null;
+                }
+            }
+        }
+
+        const sound = new SoundSystem();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Target Resolution
+        const GAME_WIDTH = 800;
+        const GAME_HEIGHT = 400;
+        canvas.width = GAME_WIDTH;
+        canvas.height = GAME_HEIGHT;
+
+        // UI References
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const pauseScreen = document.getElementById('pauseScreen');
+        const startBtn = document.getElementById('startBtn');
+        const restartBtn = document.getElementById('restartBtn');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const soundToggle = document.getElementById('soundToggle');
+        const soundIcon = document.getElementById('soundIcon');
+        const skinButtons = document.querySelectorAll('.skin-btn');
+
+        // Game Variables
+        let gameState = 'START'; // 'START', 'PLAYING', 'PAUSED', 'GAMEOVER'
+        let gameSpeed = 6;
+        let baseSpeed = 6;
+        let score = 0;
+        let distance = 0;
+        let highScore = parseInt(localStorage.getItem('neon_runner_highscore') || '0');
+        let comboMultiplier = 1;
+        let gameTime = 0;
+        let dayTimeCycle = 0; // 0 to 1 (0 = Night, 0.5 = Day)
+
+        // Selected Skin
+        let selectedSkin = 'dino';
+
+        class Player {
+            constructor() {
+                this.x = 80;
+                this.y = 280;
+                this.width = 44;
+                this.height = 52;
+                this.normalHeight = 52;
+                this.duckHeight = 28;
+                this.vy = 0;
+                this.gravity = 0.65;
+                this.jumpStrength = -12.5;
+                this.isGrounded = false;
+                this.jumpCount = 0;
+                this.maxJumps = 2;
+                this.isDucking = false;
+                
+                // Power-up States
+                this.hasShield = false;
+                this.hasJetpack = false;
+                this.jetpackTimer = 0;
+                this.hasMagnet = false;
+                this.magnetTimer = 0;
+                this.doublePointsTimer = 0;
+
+                // Animation frame
+                this.animFrame = 0;
+                this.animTimer = 0;
+            }
+
+            reset() {
+                this.y = 280;
+                this.vy = 0;
+                this.isGrounded = true;
+                this.jumpCount = 0;
+                this.isDucking = false;
+                this.height = this.normalHeight;
+                this.hasShield = false;
+                this.hasJetpack = false;
+                this.jetpackTimer = 0;
+                this.hasMagnet = false;
+                this.magnetTimer = 0;
+                this.doublePointsTimer = 0;
+            }
+
+            jump() {
+                if (this.hasJetpack) {
+                    this.vy = -6; // Smooth jetpack flight
+                    return;
+                }
+
+                if (this.isGrounded || this.jumpCount < this.maxJumps) {
+                    this.vy = this.jumpStrength;
+                    this.isGrounded = false;
+                    this.jumpCount++;
+                    sound.playJump();
+                }
+            }
+
+            duck(isDucking) {
+                if (this.hasJetpack) return;
+                this.isDucking = isDucking;
+                if (isDucking) {
+                    this.height = this.duckHeight;
+                    if (!this.isGrounded) {
+                        this.vy += 5; // Fast drop
+                    }
+                } else {
+                    this.height = this.normalHeight;
+                }
+            }
+
+            update() {
+                // Update Timers
+                if (this.jetpackTimer > 0) {
+                    this.jetpackTimer--;
+                    if (this.jetpackTimer <= 0) this.hasJetpack = false;
+                }
+                if (this.magnetTimer > 0) {
+                    this.magnetTimer--;
+                    if (this.magnetTimer <= 0) this.hasMagnet = false;
+                }
+                if (this.doublePointsTimer > 0) {
+                    this.doublePointsTimer--;
+                }
+
+                // Movement Logic
+                if (this.hasJetpack) {
+                    this.vy += 0.2; // Gentle hover gravity
+                    this.y += this.vy;
+                    if (this.y < 50) this.y = 50;
+                    if (this.y > 280) {
+                        this.y = 280;
+                        this.isGrounded = true;
+                    }
+                } else {
+                    this.vy += this.gravity;
+                    this.y += this.vy;
+
+                    const groundLevel = 330 - this.height;
+                    if (this.y >= groundLevel) {
+                        this.y = groundLevel;
+                        this.vy = 0;
+                        this.isGrounded = true;
+                        this.jumpCount = 0;
+                    }
+                }
+
+                // Animation tick
+                this.animTimer++;
+                if (this.animTimer % 6 === 0) {
+                    this.animFrame = (this.animFrame + 1) % 4;
+                }
+            }
+
+            draw() {
+                ctx.save();
+
+                // Draw Shield Aura
+                if (this.hasShield) {
+                    ctx.beginPath();
+                    ctx.arc(this.x + this.width / 2, this.y + this.height / 2, 35, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 243, 255, 0.25)';
+                    ctx.strokeStyle = '#00f3ff';
+                    ctx.lineWidth = 2;
+                    ctx.fill();
+                    ctx.stroke();
+                }
+
+                // Render based on selected skin
+                if (selectedSkin === 'dino') {
+                    // Neon Cyber Dino
+                    ctx.fillStyle = '#00f3ff';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#00f3ff';
+
+                    // Main body
+                    ctx.fillRect(this.x + 8, this.y + 12, this.width - 12, this.height - 18);
+                    // Head
+                    ctx.fillRect(this.x + 20, this.y, 22, 18);
+                    // Eye
+                    ctx.fillStyle = '#ff0055';
+                    ctx.fillRect(this.x + 34, this.y + 4, 4, 4);
+
+                    // Running legs animation
+                    ctx.fillStyle = '#00f3ff';
+                    if (this.isGrounded) {
+                        if (this.animFrame % 2 === 0) {
+                            ctx.fillRect(this.x + 10, this.y + this.height - 8, 8, 8);
+                            ctx.fillRect(this.x + 26, this.y + this.height - 14, 8, 8);
+                        } else {
+                            ctx.fillRect(this.x + 10, this.y + this.height - 14, 8, 8);
+                            ctx.fillRect(this.x + 26, this.y + this.height - 8, 8, 8);
+                        }
+                    } else {
+                        ctx.fillRect(this.x + 14, this.y + this.height - 10, 16, 6);
+                    }
+                } else if (selectedSkin === 'runner') {
+                    // Synth Bot
+                    ctx.fillStyle = '#ff0055';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#ff0055';
+                    ctx.fillRect(this.x + 10, this.y + 8, 24, this.height - 16);
+                    ctx.fillStyle = '#ffee00';
+                    ctx.fillRect(this.x + 18, this.y + 12, 14, 6); // Visor
+                } else {
+                    // Astro Cat
+                    ctx.fillStyle = '#ffe600';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#ffe600';
+                    ctx.fillRect(this.x + 6, this.y + 10, 32, this.height - 16);
+                    // Ears
+                    ctx.beginPath();
+                    ctx.moveTo(this.x + 8, this.y + 10);
+                    ctx.lineTo(this.x + 14, this.y);
+                    ctx.lineTo(this.x + 20, this.y + 10);
+                    ctx.fill();
+                }
+
+                // Jetpack Flame Effect
+                if (this.hasJetpack) {
+                    ctx.fillStyle = '#ff5500';
+                    ctx.fillRect(this.x - 12, this.y + 15, 10, 12 + Math.random() * 8);
+                }
+
+                ctx.restore();
+            }
+        }
+
+        class Obstacle {
+            constructor(type) {
+                this.type = type; // 'ground', 'flying', 'laser'
+                this.x = GAME_WIDTH + 50;
+                this.markedForDeletion = false;
+
+                if (type === 'ground') {
+                    this.width = 24 + Math.random() * 20;
+                    this.height = 35 + Math.random() * 25;
+                    this.y = 330 - this.height;
+                    this.color = '#ff0055';
+                } else if (type === 'flying') {
+                    this.width = 36;
+                    this.height = 24;
+                    // Low or high flying height requiring jump or duck
+                    this.y = Math.random() > 0.5 ? 240 : 285;
+                    this.color = '#ffe600';
+                    this.wingTimer = 0;
+                } else if (type === 'laser') {
+                    this.width = 16;
+                    this.height = 120;
+                    this.y = 330 - this.height;
+                    this.color = '#00f3ff';
+                }
+            }
+
+            update() {
+                this.x -= gameSpeed;
+                if (this.x + this.width < -50) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+
+                if (this.type === 'ground') {
+                    // Cyber Spike / Crystal
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y + this.height);
+                    ctx.lineTo(this.x + this.width / 2, this.y);
+                    ctx.lineTo(this.x + this.width, this.y + this.height);
+                    ctx.closePath();
+                    ctx.fill();
+                } else if (this.type === 'flying') {
+                    // Flying Drone
+                    ctx.fillRect(this.x, this.y + 6, this.width, 12);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(this.x + 10, this.y + (Math.sin(Date.now() / 80) * 6), 16, 4);
+                } else if (this.type === 'laser') {
+                    // Moving Laser Barrier
+                    ctx.fillStyle = 'rgba(0, 243, 255, 0.8)';
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(this.x, this.y, this.width, this.height);
+                }
+                ctx.restore();
+            }
+        }
+
+        class PowerUp {
+            constructor() {
+                this.x = GAME_WIDTH + 50;
+                this.y = 180 + Math.random() * 90;
+                this.width = 26;
+                this.height = 26;
+                this.markedForDeletion = false;
+                
+                const types = ['shield', 'jetpack', 'magnet', 'double'];
+                this.type = types[Math.floor(Math.random() * types.length)];
+            }
+
+            update(player) {
+                // Magnet Effect pulling power-ups
+                if (player.hasMagnet) {
+                    const dx = (player.x + player.width / 2) - (this.x + this.width / 2);
+                    const dy = (player.y + player.height / 2) - (this.y + this.height / 2);
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < 220) {
+                        this.x += (dx / dist) * 8;
+                        this.y += (dy / dist) * 8;
+                    } else {
+                        this.x -= gameSpeed;
+                    }
+                } else {
+                    this.x -= gameSpeed;
+                }
+
+                if (this.x + this.width < -50) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 10;
+                let symbol = '🛡️';
+
+                if (this.type === 'shield') {
+                    ctx.shadowColor = '#00f3ff';
+                    symbol = '🛡️';
+                } else if (this.type === 'jetpack') {
+                    ctx.shadowColor = '#ff5500';
+                    symbol = '🚀';
+                } else if (this.type === 'magnet') {
+                    ctx.shadowColor = '#ff00ff';
+                    symbol = '🧲';
+                } else if (this.type === 'double') {
+                    ctx.shadowColor = '#ffe600';
+                    symbol = '2️⃣';
+                }
+
+                ctx.font = '20px sans-serif';
+                ctx.fillText(symbol, this.x, this.y + 20);
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 6;
+                this.vy = (Math.random() - 0.5) * 6;
+                this.size = Math.random() * 4 + 2;
+                this.color = color;
+                this.alpha = 1;
+                this.markedForDeletion = false;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.03;
+                if (this.alpha <= 0) {
+                    this.markedForDeletion = true;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        // Entities arrays
+        const player = new Player();
+        let obstacles = [];
+        let powerUps = [];
+        let particles = [];
+        let obstacleTimer = 0;
+        let powerUpTimer = 0;
+
+        // Background Parallax Stars & City Skyline
+        const stars = Array.from({ length: 40 }, () => ({
+            x: Math.random() * GAME_WIDTH,
+            y: Math.random() * (GAME_HEIGHT / 2),
+            size: Math.random() * 2 + 1,
+            speed: Math.random() * 0.5 + 0.2
+        }));
+
+        const buildings = Array.from({ length: 15 }, (_, i) => ({
+            x: i * 60,
+            width: 50 + Math.random() * 20,
+            height: 80 + Math.random() * 120,
+            speed: 1
+        }));
+
+        function drawBackground() {
+            // Day/Night Sky Color Cycle
+            dayTimeCycle = (Math.sin(gameTime / 1000) + 1) / 2; // 0 (night) to 1 (day-ish cyber twilight)
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, GAME_HEIGHT);
+
+            if (dayTimeCycle < 0.5) {
+                skyGradient.addColorStop(0, '#090a0f');
+                skyGradient.addColorStop(1, '#1b1c2e');
+            } else {
+                skyGradient.addColorStop(0, '#1a0b2e');
+                skyGradient.addColorStop(1, '#3b154c');
+            }
+
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+            // Stars
+            ctx.fillStyle = '#ffffff';
+            stars.forEach(star => {
+                star.x -= star.speed;
+                if (star.x < 0) star.x = GAME_WIDTH;
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            // Synthwave Sun / Moon
+            ctx.save();
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#ff0055';
+            ctx.fillStyle = '#ff0055';
+            ctx.beginPath();
+            ctx.arc(GAME_WIDTH - 120, 100, 40, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // Parallax City Skyline
+            ctx.fillStyle = '#0f111a';
+            buildings.forEach(b => {
+                b.x -= b.speed;
+                if (b.x + b.width < 0) b.x = GAME_WIDTH;
+                ctx.fillRect(b.x, GAME_HEIGHT - b.height - 70, b.width, b.height);
+            });
+
+            // Grid Floor (Cyber Grid Effect)
+            ctx.strokeStyle = '#00f3ff';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#00f3ff';
+            ctx.beginPath();
+            ctx.moveTo(0, 330);
+            ctx.lineTo(GAME_WIDTH, 330);
+            ctx.stroke();
+
+            // Moving Grid Lines
+            ctx.strokeStyle = 'rgba(0, 243, 255, 0.15)';
+            const gridOffset = (gameTime * gameSpeed) % 40;
+            for (let x = -gridOffset; x < GAME_WIDTH; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 330);
+                ctx.lineTo(x - 20, GAME_HEIGHT);
+                ctx.stroke();
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function checkCollisions() {
+            // Player Box Collision
+            const pBox = {
+                x: player.x + 6,
+                y: player.y + 4,
+                width: player.width - 12,
+                height: player.height - 8
+            };
+
+            // Obstacles
+            for (let obs of obstacles) {
+                if (
+                    pBox.x < obs.x + obs.width &&
+                    pBox.x + pBox.width > obs.x &&
+                    pBox.y < obs.y + obs.height &&
+                    pBox.y + pBox.height > obs.y
+                ) {
+                    if (player.hasShield) {
+                        player.hasShield = false;
+                        obs.markedForDeletion = true;
+                        createExplosion(obs.x, obs.y, '#00f3ff');
+                        sound.playHit();
+                    } else {
+                        gameOver();
+                        return;
+                    }
+                }
+            }
+
+            // Power-ups
+            for (let p of powerUps) {
+                if (
+                    pBox.x < p.x + p.width &&
+                    pBox.x + pBox.width > p.x &&
+                    pBox.y < p.y + p.height &&
+                    pBox.y + pBox.height > p.y
+                ) {
+                    p.markedForDeletion = true;
+                    sound.playPickup();
+                    createExplosion(p.x, p.y, '#ffe600');
+
+                    if (p.type === 'shield') player.hasShield = true;
+                    if (p.type === 'jetpack') {
+                        player.hasJetpack = true;
+                        player.jetpackTimer = 300; // ~5 seconds
+                    }
+                    if (p.type === 'magnet') {
+                        player.hasMagnet = true;
+                        player.magnetTimer = 400;
+                    }
+                    if (p.type === 'double') {
+                        player.doublePointsTimer = 400;
+                    }
+                }
+            }
+        }
+
+        function updateGame() {
+            if (gameState !== 'PLAYING') return;
+
+            gameTime++;
+            distance += Math.floor(gameSpeed / 4);
+
+            // Progressive Difficulty Scaling
+            gameSpeed = baseSpeed + Math.floor(distance / 500) * 0.8;
+
+            player.update();
+
+            // Spawn Obstacles
+            obstacleTimer++;
+            if (obstacleTimer > Math.max(50, 110 - gameSpeed * 3)) {
+                const types = ['ground', 'flying', 'laser'];
+                const selectedType = types[Math.floor(Math.random() * types.length)];
+                obstacles.push(new Obstacle(selectedType));
+                obstacleTimer = 0;
+            }
+
+            // Spawn Power-ups
+            powerUpTimer++;
+            if (powerUpTimer > 350) {
+                if (Math.random() < 0.6) {
+                    powerUps.push(new PowerUp());
+                }
+                powerUpTimer = 0;
+            }
+
+            // Update Obstacles & Power-ups
+            obstacles.forEach(o => o.update());
+            powerUps.forEach(p => p.update(player));
+            particles.forEach(p => p.update());
+
+            // Filter out old entities
+            obstacles = obstacles.filter(o => !o.markedForDeletion);
+            powerUps = powerUps.filter(p => !p.markedForDeletion);
+            particles = particles.filter(p => !p.markedForDeletion);
+
+            // Scoring with combo & powerup multipliers
+            comboMultiplier = player.doublePointsTimer > 0 ? 2 : 1;
+            score += 1 * comboMultiplier;
+
+            checkCollisions();
+        }
+
+        function drawHUD() {
+            ctx.save();
+            ctx.font = '12px "Press Start 2P"';
+            ctx.fillStyle = '#00f3ff';
+            ctx.shadowBlur = 6;
+            ctx.shadowColor = '#00f3ff';
+
+            // Top HUD Bar
+            ctx.fillText(`SCORE: ${score}`, 20, 35);
+            ctx.fillStyle = '#ffe600';
+            ctx.fillText(`HIGH: ${highScore}`, 200, 35);
+            ctx.fillStyle = '#ff0055';
+            ctx.fillText(`DIST: ${distance}m`, 380, 35);
+
+            if (comboMultiplier > 1) {
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillText(`2X MULTIPLIER!`, 560, 35);
+            }
+
+            ctx.restore();
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            drawBackground();
+
+            particles.forEach(p => p.draw());
+            obstacles.forEach(o => o.draw());
+            powerUps.forEach(p => p.draw());
+            player.draw();
+
+            if (gameState === 'PLAYING') {
+                drawHUD();
+            }
+        }
+
+        function gameLoop() {
+            updateGame();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function startGame() {
+            gameState = 'PLAYING';
+            score = 0;
+            distance = 0;
+            gameSpeed = baseSpeed;
+            obstacles = [];
+            powerUps = [];
+            particles = [];
+            player.reset();
+
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            pauseScreen.classList.add('hidden');
+
+            sound.startMusic();
+        }
+
+        function gameOver() {
+            gameState = 'GAMEOVER';
+            sound.stopMusic();
+            sound.playHit();
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('neon_runner_highscore', highScore.toString());
+            }
+
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalHighScore').innerText = highScore;
+            document.getElementById('finalDistance').innerText = `${distance}m`;
+
+            gameOverScreen.classList.remove('hidden');
+        }
+
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseScreen.classList.remove('hidden');
+                sound.stopMusic();
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseScreen.classList.add('hidden');
+                sound.startMusic();
+            }
+        }
+
+        // Control Listeners
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' || e.code === 'ArrowUp') {
+                e.preventDefault();
+                if (gameState === 'START' || gameState === 'GAMEOVER') {
+                    startGame();
+                } else if (gameState === 'PLAYING') {
+                    player.jump();
+                }
+            }
+            if (e.code === 'ArrowDown') {
+                e.preventDefault();
+                if (gameState === 'PLAYING') player.duck(true);
+            }
+            if (e.code === 'KeyP' || e.code === 'Escape') {
+                if (gameState === 'PLAYING' || gameState === 'PAUSED') togglePause();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ArrowDown') {
+                if (gameState === 'PLAYING') player.duck(false);
+            }
+        });
+
+        // Touch Controls
+        const touchJump = document.getElementById('touchJump');
+        const touchDuck = document.getElementById('touchDuck');
+
+        touchJump.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'START' || gameState === 'GAMEOVER') startGame();
+            else if (gameState === 'PLAYING') player.jump();
+        });
+
+        touchDuck.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'PLAYING') player.duck(true);
+        });
+
+        touchDuck.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (gameState === 'PLAYING') player.duck(false);
+        });
+
+        // Buttons
+        startBtn.addEventListener('click', startGame);
+        restartBtn.addEventListener('click', startGame);
+        resumeBtn.addEventListener('click', togglePause);
+        pauseBtn.addEventListener('click', togglePause);
+
+        soundToggle.addEventListener('click', () => {
+            sound.enabled = !sound.enabled;
+            soundIcon.innerText = sound.enabled ? '🔊' : '🔇';
+            if (!sound.enabled) sound.stopMusic();
+            else if (gameState === 'PLAYING') sound.startMusic();
+        });
+
+        // Skin Selector
+        skinButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                skinButtons.forEach(b => {
+                    b.classList.remove('border-cyan-400');
+                    b.classList.add('border-slate-700');
+                });
+                btn.classList.remove('border-slate-700');
+                btn.classList.add('border-cyan-400');
+                selectedSkin = btn.dataset.skin;
+            });
+        });
+
+        // Boot Game Engine
+        window.onload = () => {
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
